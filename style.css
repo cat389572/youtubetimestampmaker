@@ -1,0 +1,435 @@
+:root {
+    --bg-dark: #0f172a;
+    --bg-glass: rgba(30, 41, 59, 0.7);
+    --border-glass: rgba(148, 163, 184, 0.1);
+    --accent-primary: #06b6d4;
+    /* Cyan */
+    --accent-secondary: #8b5cf6;
+    /* Violet */
+    --action-start: #22c55e;
+    --action-stop: #ef4444;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --font-ui: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-dark);
+    background-image:
+        radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+    background-attachment: fixed;
+    color: var(--text-main);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* Glassmorphism */
+.glass-panel {
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.app-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 25px;
+}
+
+h1 {
+    font-weight: 800;
+    font-size: 1.5rem;
+}
+
+.accent-text {
+    color: var(--accent-primary);
+    text-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+}
+
+.offset-control-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.offset-control-group label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.stepper {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 2px;
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    border-radius: 6px;
+}
+
+.icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+input[type="number"],
+input[type="text"] {
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    width: 60px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    appearance: textfield;
+}
+
+/* Remove spinners (legacy support just in case) */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Main Grid */
+.main-grid {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 20px;
+    height: calc(100vh - 120px);
+}
+
+.left-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.right-col {
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    overflow: hidden;
+}
+
+/* Timer Section */
+.timer-section {
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    text-align: center;
+}
+
+/* Flex container for Timer + Controls side-by-side */
+.timer-area {
+    display: flex;
+    align-items: center;
+    /* Vertically align center */
+    justify-content: center;
+    gap: 40px;
+    /* Space between timer and buttons */
+    margin-bottom: 20px;
+}
+
+.timer-display {
+    font-family: var(--font-mono);
+    font-size: 5rem;
+    font-weight: 700;
+    letter-spacing: -2px;
+    color: var(--text-main);
+    text-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.timer-controls {
+    display: flex;
+    flex-direction: column;
+    /* Start/Pause on top, Reset below? Or Row? User said "Start/Pause&Reset buttons.. right". Let's stack them or row them? Row looks better usually. */
+    flex-direction: row;
+    gap: 15px;
+}
+
+.action-btn-img {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    line-height: 0;
+    transition: transform 0.1s;
+}
+
+.action-btn-img:hover {
+    transform: scale(1.1);
+}
+
+.action-btn-img:active {
+    transform: scale(0.95);
+}
+
+.action-btn-img img {
+    /* 1/4 size request. Buttons small. */
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Hero Button */
+.mega-btn-hero {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    border: none;
+    color: white;
+    width: 100%;
+    max-width: 500px;
+    padding: 30px;
+    border-radius: 20px;
+    font-weight: 800;
+    font-size: 2.2rem;
+    cursor: pointer;
+    box-shadow: 0 0 30px rgba(6, 182, 212, 0.3);
+    transition: all 0.1s;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mega-btn-hero:hover {
+    box-shadow: 0 0 50px rgba(6, 182, 212, 0.5);
+    transform: translateY(-2px);
+}
+
+.mega-btn-hero:active {
+    transform: translateY(1px);
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+}
+
+.sync-note {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 10px;
+}
+
+/* List */
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.secondary-btn {
+    width: 100%;
+    margin-top: 15px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.secondary-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.timestamp-list-container {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 5px;
+}
+
+.timestamp-list-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.timestamp-list-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.timestamp-item {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border-left: 3px solid var(--accent-primary);
+}
+
+.timestamp-item:hover {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.ts-time {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent-primary);
+    min-width: 60px;
+}
+
+.ts-desc {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1rem;
+    font-family: var(--font-ui);
+    padding: 5px;
+}
+
+.ts-desc:focus {
+    outline: none;
+    border-bottom: 1px solid var(--accent-secondary);
+}
+
+.ts-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ts-offset-input {
+    width: 45px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.btn-delete {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.btn-delete:hover {
+    color: var(--action-stop);
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 40px 0;
+    font-style: italic;
+}
+
+@media (max-width: 900px) {
+    .main-grid {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+
+    .right-col {
+        max-height: 500px;
+    }
+}
+
+@media (max-width: 600px) {
+
+    /* Container & Layout */
+    body {
+        padding: 10px;
+    }
+
+    .app-container {
+        gap: 10px;
+    }
+
+    /* Header */
+    header {
+        flex-direction: column;
+        gap: 15px;
+        padding: 15px;
+    }
+
+    h1 {
+        font-size: 1.2rem;
+    }
+
+    /* Timer Section */
+    .timer-section {
+        padding: 20px 10px;
+    }
+
+    .timer-area {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .timer-display {
+        font-size: 3.5rem;
+        /* Decrease from 5rem */
+    }
+
+    .timer-controls {
+        flex-direction: row;
+        width: 100%;
+        justify-content: center;
+        gap: 30px;
+    }
+
+    /* Hero Button */
+    .mega-btn-hero {
+        font-size: 1.5rem;
+        padding: 20px;
+    }
+
+    /* Timestamp List */
+    .timestamp-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 10px;
+    }
+
+    .ts-actions {
+        justify-content: flex-end;
+    }
+
+    .ts-desc {
+        width: 100%;
+    }
+}
