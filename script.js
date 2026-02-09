@@ -38,6 +38,7 @@ const Timer = {
         if (state.timer.rafId) cancelAnimationFrame(state.timer.rafId);
         updateTimerDisplay(); // Ensure final frozen frame is accurate
         updateControls();
+        saveState(); // Save state on pause
     },
     toggle: () => {
         if (state.timer.isRunning) Timer.pause();
@@ -59,6 +60,9 @@ const Timer = {
         state.timestamps = [];
         state.nextId = 1;
 
+        // Clear saved state
+        localStorage.removeItem('yt_ts_maker_data');
+
         updateTimerDisplay();
         updateControls();
         renderTimestamps();
@@ -77,12 +81,15 @@ const Timer = {
 function tick() {
     if (!state.timer.isRunning) return;
     updateTimerDisplay();
+    // Optional: save state periodically? Might be too heavy. 
+    // Rely on pause/unload saving.
     state.timer.rafId = requestAnimationFrame(tick);
 }
 
 function updateTimerDisplay() {
     const ms = Timer.getCurrentTime();
-    document.getElementById('timer-display').textContent = formatTimeHighRes(ms);
+    // Use innerHTML to support span styling
+    document.getElementById('timer-display').innerHTML = formatTimeHighRes(ms);
 }
 
 function updateControls() {
@@ -115,10 +122,13 @@ function formatTimeHighRes(ms) {
     // 1 decimal place (100ms precision visual)
     const dec = Math.floor(date.getUTCMilliseconds() / 100);
 
+    // Wrap decimal in span
+    const decimalPart = `<span class="timer-decimal">.${dec}</span>`;
+
     if (ms >= 3600000) {
-        return `${pad(h)}:${pad(min)}:${pad(s)}.${dec}`;
+        return `${pad(h)}:${pad(min)}:${pad(s)}${decimalPart}`;
     }
-    return `${pad(min)}:${pad(s)}.${dec}`;
+    return `${pad(min)}:${pad(s)}${decimalPart}`;
 }
 
 function formatTimeSimple(totalMs) {
@@ -153,18 +163,20 @@ function addTimestamp() {
     };
 
     state.timestamps.push(newTimestamp);
-    renderTimestamps();
+    renderTimestamps(true, true); // Scroll to bottom on add
 
     // Focus the last added input
     setTimeout(() => {
         const inputs = document.querySelectorAll('.ts-desc');
         if (inputs.length > 0) inputs[inputs.length - 1].focus();
     }, 50);
+    saveState();
 }
 
 function deleteTimestamp(id) {
     state.timestamps = state.timestamps.filter(t => t.id !== id);
-    renderTimestamps();
+    renderTimestamps(true, false); // Don't scroll on delete
+    saveState();
 }
 
 function updateTimestamp(id, updates) {
@@ -172,6 +184,7 @@ function updateTimestamp(id, updates) {
     if (ts) {
         Object.assign(ts, updates);
         renderTimestamps(false); // Don't full re-render
+        saveState();
     }
 }
 
@@ -184,7 +197,7 @@ function calculateDisplayTime(ts) {
 /**
  * Rendering
  */
-function renderTimestamps(fullRender = true) {
+function renderTimestamps(fullRender = true, scrollToBottom = false) {
     const container = document.getElementById('timestamp-list');
 
     if (!fullRender) {
@@ -205,26 +218,135 @@ function renderTimestamps(fullRender = true) {
     state.timestamps.forEach(ts => {
         const item = document.createElement('div');
         item.className = 'timestamp-item';
+        // XSS FIX: Removed value="${ts.description}" to prevent HTML injection.
+        // We set the value programmatically below.
         item.innerHTML = `
-            <div class="ts-time" id="ts-time-${ts.id}">${formatTimeSimple(calculateDisplayTime(ts))}</div>
-            <input class="ts-desc" type="text" value="${ts.description}" placeholder="Description..." onchange="updateTimestamp(${ts.id}, {description: this.value})">
-            <div class="ts-actions">
-                <button onclick="adjustLocalOffset(${ts.id}, -1)" class="icon-btn" style="width:24px; height:24px; font-size: 1rem; display:flex; align-items:center; justify-content:center;">-</button>
-                <input type="text" class="ts-offset-input" value="${ts.localOffset / 1000}" inputmode="decimal" onchange="setLocalOffset(${ts.id}, this.value)">
-                <button onclick="adjustLocalOffset(${ts.id}, 1)" class="icon-btn" style="width:24px; height:24px; font-size: 1rem; display:flex; align-items:center; justify-content:center;">+</button>
-                <button class="btn-delete" onclick="deleteTimestamp(${ts.id})">×</button>
+            <div class="ts-delete-overlay" id="delete-overlay-${ts.id}">
+                <div class="delete-progress"></div>
+                <span>HOLD TO DELETE</span>
+            </div>
+            <div class="ts-content-row">
+                <div class="ts-time" id="ts-time-${ts.id}">${formatTimeSimple(calculateDisplayTime(ts))}</div>
+                <input class="ts-desc" type="text" placeholder="Description..." onchange="updateTimestamp(${ts.id}, {description: this.value})">
+            </div>
+            <div class="ts-actions-row">
+                <div class="local-offset-control">
+                    <span class="offset-label">Offset</span>
+                    <button onclick="adjustLocalOffset(${ts.id}, -1)" class="icon-btn-large">-</button>
+                    <input type="text" class="ts-offset-input-large" value="${ts.localOffset / 1000}" inputmode="decimal" onchange="setLocalOffset(${ts.id}, this.value)">
+                    <button onclick="adjustLocalOffset(${ts.id}, 1)" class="icon-btn-large">+</button>
+                </div>
             </div>
         `;
 
         const descInput = item.querySelector('.ts-desc');
+        // Safely set the value programmatically
+        descInput.value = ts.description || '';
+
         descInput.addEventListener('input', (e) => {
             ts.description = e.target.value;
+            saveState(); // Save on input (maybe too frequent? better on change/blur or debounced? user asked for reliable saving. 'input' is safest but high freq. let's stick to updateTimestamp (change) for now or add explicit save here? updateTimestamp is onchange. Let's add saveState here too to be safe/granular, or rely on change.)
+            // Actually, updateTimestamp is called on 'change' (blur/enter). For realtime safety 'input' is better but spammy.
+            // Let's rely on 'change' via updateTimestamp for the bulk, but maybe debounce save?
+            // For now, let's stick to 'change' (updateTimestamp) which calls saveState.
+            // BUT, if user types and reloads before blurring, data loss.
+            // Let's add a debounced save? Or just save on input (localStorage is fast).
+            // Let's try adding explicit save here for safety.
+            saveState();
         });
+
+        // Long Press Delete Logic
+        const deleteOverlay = item.querySelector(`#delete-overlay-${ts.id}`);
+        // ... (rest of logic same)
+        const progressBar = deleteOverlay.querySelector('.delete-progress');
+        let pressTimer;
+        let isPressing = false;
+
+        const startPress = (e) => {
+            if (e.target !== deleteOverlay && e.target.parentElement !== deleteOverlay) return;
+            // Only trigger if clicking the overlay itself (or immediate text child if structure implies)
+            // simplified: blocking propagation from children if any? The overlay covers the top area.
+
+            isPressing = true;
+            deleteOverlay.classList.add('pressing');
+
+            // 2000ms to delete
+            pressTimer = setTimeout(() => {
+                if (isPressing) {
+                    deleteTimestamp(ts.id);
+                }
+            }, 2000);
+        };
+
+        const cancelPress = () => {
+            if (!isPressing) return;
+            isPressing = false;
+            deleteOverlay.classList.remove('pressing');
+            clearTimeout(pressTimer);
+        };
+
+        // Mouse
+        deleteOverlay.addEventListener('mousedown', startPress);
+        deleteOverlay.addEventListener('mouseup', cancelPress);
+        deleteOverlay.addEventListener('mouseleave', cancelPress);
+
+        // Touch
+        deleteOverlay.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // prevent mouse emulation
+            startPress(e);
+        });
+        deleteOverlay.addEventListener('touchend', cancelPress);
+        deleteOverlay.addEventListener('touchcancel', cancelPress);
 
         container.appendChild(item);
     });
 
-    container.scrollTop = container.scrollHeight;
+    if (scrollToBottom) {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+/**
+ * Persistence
+ */
+function saveState() {
+    const data = {
+        timestamps: state.timestamps,
+        globalOffset: state.globalOffset,
+        timerAccumulated: state.timer.accumulated // Save current accumulated time
+    };
+    if (state.timer.isRunning) {
+        // If running, calculate current accumulated up to now
+        data.timerAccumulated = Timer.getCurrentTime();
+    }
+    localStorage.setItem('yt_ts_maker_data', JSON.stringify(data));
+}
+
+function loadState() {
+    const raw = localStorage.getItem('yt_ts_maker_data');
+    if (!raw) return;
+
+    try {
+        const data = JSON.parse(raw);
+        if (data.timestamps) {
+            state.timestamps = data.timestamps;
+            // Restore nextId
+            const maxId = state.timestamps.reduce((max, t) => Math.max(max, t.id), 0);
+            state.nextId = maxId + 1;
+        }
+        if (data.globalOffset !== undefined) {
+            state.globalOffset = data.globalOffset;
+            const globalInput = document.getElementById('global-offset');
+            if (globalInput) globalInput.value = state.globalOffset;
+        }
+        if (data.timerAccumulated !== undefined) {
+            state.timer.accumulated = data.timerAccumulated;
+            updateTimerDisplay(); // reflect loaded time
+        }
+        renderTimestamps();
+    } catch (e) {
+        console.error("Failed to load state", e);
+    }
 }
 
 /**
@@ -234,7 +356,8 @@ window.adjustLocalOffset = (id, deltaSec) => {
     const ts = state.timestamps.find(t => t.id === id);
     if (ts) {
         ts.localOffset += (deltaSec * 1000);
-        renderTimestamps();
+        renderTimestamps(true, false); // Keep position
+        saveState();
     }
 };
 
@@ -242,26 +365,105 @@ window.setLocalOffset = (id, valSec) => {
     const ts = state.timestamps.find(t => t.id === id);
     if (ts) {
         ts.localOffset = parseFloat(valSec) * 1000;
-        renderTimestamps();
+        renderTimestamps(true, false); // Keep position
+        saveState();
     }
 };
 
 window.deleteTimestamp = deleteTimestamp;
 window.updateTimestamp = updateTimestamp;
 
+// Manual Timer Editing
+function initTimerEditing() {
+    const display = document.getElementById('timer-display');
+
+    display.addEventListener('click', () => {
+        if (state.timer.isRunning) Timer.pause(); // Pause to edit
+
+        const currentText = display.innerText.split('.')[0]; // remove decimal for simpler edit? or keep it?
+        // Let's keep it simple: HH:MM:SS or MM:SS. We can ignore decimal for input.
+
+        // Replace with input
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = currentText;
+        input.className = 'timer-edit-input'; // We'll need some CSS for this
+        input.style.fontSize = 'inherit';
+        input.style.fontFamily = 'inherit';
+        input.style.color = 'inherit';
+        input.style.background = 'transparent';
+        input.style.border = '1px solid rgba(255,255,255,0.3)';
+        input.style.borderRadius = '4px';
+        input.style.textAlign = 'center';
+        input.style.width = '300px';
+
+        display.innerHTML = '';
+        display.appendChild(input);
+        input.focus();
+
+        const saveEdit = () => {
+            const val = input.value.trim();
+            const parts = val.split(':').map(p => parseFloat(p));
+            let newMs = 0;
+
+            if (parts.length === 3) {
+                // HH:MM:SS
+                newMs = ((parts[0] * 3600) + (parts[1] * 60) + parts[2]) * 1000;
+            } else if (parts.length === 2) {
+                // MM:SS
+                newMs = ((parts[0] * 60) + parts[1]) * 1000;
+            } else if (parts.length === 1) {
+                // SS
+                newMs = parts[0] * 1000;
+            }
+
+            if (!isNaN(newMs)) {
+                state.timer.accumulated = newMs;
+                if (state.timer.startTime) {
+                    // If it was running (startTime set), we need to reset start time to now - newMs logic? 
+                    // But we paused it at start of edit. startTime is null.
+                }
+            }
+
+            updateTimerDisplay();
+            saveState();
+        };
+
+        // Save on blur or enter
+        input.addEventListener('blur', saveEdit);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                saveEdit();
+            }
+        });
+    });
+}
+
+
 /**
  * Initialization & Event Listeners
  */
 document.addEventListener('DOMContentLoaded', () => {
+    loadState(); // Load saved data
+    initTimerEditing();
+
     // Timer Controls
     document.getElementById('btn-timer-start').addEventListener('click', Timer.toggle);
     document.getElementById('btn-timer-reset').addEventListener('click', Timer.reset);
+
+    // Save timer state periodically when running (e.g. on pause or just rely on unload?)
+    // Reliable way: save on pause/stop. Users usually pause before leaving.
+    // Also save on unload (already covered if we ensure timer state is saved).
+    // The existing beforeunload check prevents accidental loss, but if they confirm exit, we should save?
+    // Actually successful exit saves nothing currently in beforeunload.
+    // Let's add saveState to Timer.pause() for consistency.
 
     // Global Offset
     const globalInput = document.getElementById('global-offset');
     const updateGlobal = () => {
         state.globalOffset = parseFloat(globalInput.value) || 0;
-        renderTimestamps();
+        renderTimestamps(true, false); // Keep position
+        saveState();
     };
 
     document.getElementById('btn-global-plus').addEventListener('click', () => {
@@ -313,3 +515,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+// Prevent accidental reload/leave
+window.addEventListener('beforeunload', (e) => {
+    // Check if there is anything worth saving
+    // 1. Timer is running
+    // 2. Timer has accumulated time
+    // 3. Timestamps exist
+    const isDataPresent = state.timer.isRunning || state.timer.accumulated > 0 || state.timestamps.length > 0;
+
+    if (isDataPresent) {
+        e.preventDefault();
+        e.returnValue = ''; // Standard for modern browsers to trigger the prompt
+    }
+});
+
