@@ -29,7 +29,10 @@ body {
     color: var(--text-main);
     font-family: var(--font-ui);
     min-height: 100vh;
+    min-height: 100vh;
     padding: 20px;
+    overscroll-behavior-y: contain;
+    /* Prevent pull-to-refresh on mobile */
 }
 
 /* Glassmorphism */
@@ -92,11 +95,17 @@ h1 {
     background: transparent;
     border: none;
     color: var(--text-main);
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    /* Increased from 32 */
+    height: 40px;
+    /* Increased from 32 */
     cursor: pointer;
-    font-size: 1.1rem;
+    font-size: 1.4rem;
+    /* Increased from 1.1 */
     border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .icon-btn:hover {
@@ -111,8 +120,14 @@ input[type="text"] {
     width: 60px;
     text-align: center;
     font-family: var(--font-mono);
-    font-size: 0.9rem;
+    font-size: 1.2rem;
+    /* Increased from 0.9 */
     appearance: textfield;
+}
+
+#global-offset {
+    width: 120px;
+    /* Increased from default 60px to show more digits */
 }
 
 /* Remove spinners (legacy support just in case) */
@@ -173,6 +188,19 @@ input::-webkit-inner-spin-button {
     text-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
     font-variant-numeric: tabular-nums;
     line-height: 1;
+    cursor: pointer;
+    /* Indicates editable */
+}
+
+.timer-display:hover {
+    text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+}
+
+.timer-decimal {
+    font-size: 0.65em;
+    /* 2/3 size approx */
+    opacity: 0.8;
+    /* Slightly dimmed for visual hierarchy */
 }
 
 .timer-controls {
@@ -288,19 +316,7 @@ input::-webkit-inner-spin-button {
     border-radius: 3px;
 }
 
-.timestamp-item {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 10px;
-    padding: 12px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    border-left: 3px solid var(--accent-primary);
-}
 
-.timestamp-item:hover {
-    background: rgba(0, 0, 0, 0.4);
-}
 
 .ts-time {
     font-family: var(--font-mono);
@@ -310,7 +326,8 @@ input::-webkit-inner-spin-button {
     min-width: 60px;
 }
 
-.ts-desc {
+/* Increased specificity to override global input[type="text"] */
+input.ts-desc {
     flex: 1;
     background: transparent;
     border: none;
@@ -318,9 +335,14 @@ input::-webkit-inner-spin-button {
     font-size: 1rem;
     font-family: var(--font-ui);
     padding: 5px;
+    /* Override global input styles */
+    width: 100%;
+    text-align: left;
+    min-width: 0;
+    /* Allow flex shrinking if needed */
 }
 
-.ts-desc:focus {
+input.ts-desc:focus {
     outline: none;
     border-bottom: 1px solid var(--accent-secondary);
 }
@@ -401,7 +423,6 @@ input::-webkit-inner-spin-button {
 
     .timer-display {
         font-size: 3.5rem;
-        /* Decrease from 5rem */
     }
 
     .timer-controls {
@@ -416,20 +437,163 @@ input::-webkit-inner-spin-button {
         font-size: 1.5rem;
         padding: 20px;
     }
+}
 
-    /* Timestamp List */
-    .timestamp-item {
+/* New Specifics for Long Press & Large Fonts */
+
+/* Consolidated Timestamp Item Styles */
+.timestamp-item {
+    display: flex;
+    flex-direction: column;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 0;
+    /* Reset padding to handle internal structure */
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+    /* For progress bar */
+    position: relative;
+    transition: background 0.2s;
+
+    /* Crucial for mobile layout to prevent squashing */
+    flex-shrink: 0;
+    align-items: stretch;
+}
+
+.timestamp-item:hover {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.ts-delete-overlay {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 8px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s, color 0.2s;
+    user-select: none;
+    /* Make it look like a button */
+    margin: 4px;
+    border-radius: 8px;
+    overflow: hidden;
+    /* Ensure progress bar corners are clipped */
+}
+
+.ts-delete-overlay:hover {
+    background: rgba(239, 68, 68, 0.1);
+    /* Slight red tint */
+    color: var(--action-stop);
+}
+
+.ts-delete-overlay.pressing {
+    color: white;
+}
+
+.delete-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    background: var(--action-stop);
+    opacity: 0.8;
+    z-index: -1;
+    transition: width 0s;
+}
+
+.ts-delete-overlay.pressing .delete-progress {
+    width: 100%;
+    transition: width 2s linear;
+    /* Matches JS timer */
+}
+
+
+.ts-delete-overlay span {
+    position: relative;
+    z-index: 1;
+    pointer-events: none;
+}
+
+
+.ts-content-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px 15px 5px 15px;
+}
+
+.ts-actions-row {
+    display: flex;
+    justify-content: flex-end;
+    /* Right align offset controls */
+    padding: 5px 15px 15px 15px;
+}
+
+.local-offset-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 6px 12px;
+    border-radius: 8px;
+}
+
+.offset-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-right: 5px;
+}
+
+/* Larger Inputs/Buttons */
+.icon-btn-large {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: var(--text-main);
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s;
+}
+
+.icon-btn-large:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.icon-btn-large:active {
+    transform: scale(0.95);
+}
+
+.ts-offset-input-large {
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    width: 50px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    /* Larger font */
+    font-weight: 600;
+}
+
+
+/* Adjust existing query for mobile if needed, though flex-col approach is now default */
+@media (max-width: 600px) {
+    .ts-content-row {
         flex-direction: column;
         align-items: stretch;
-        gap: 10px;
-        padding: 10px;
     }
 
-    .ts-actions {
-        justify-content: flex-end;
-    }
-
-    .ts-desc {
-        width: 100%;
+    .ts-actions-row {
+        justify-content: center;
     }
 }
