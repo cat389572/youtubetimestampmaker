@@ -4,10 +4,11 @@
 const state = {
     // Timer state
     timer: {
-        startTime: null,      // Time when timer was started
-        accumulated: 0,       // Duration accumulated from previous start/stops
+        startTime: null,      // Time when timer was started (real clock time)
+        accumulated: 0,       // Duration accumulated from previous sessions (scaled time)
         isRunning: false,
-        rafId: null
+        rafId: null,
+        speed: 1.0            // Playback speed multiplier
     },
     // Data
     timestamps: [],           // Array of { id, rawTime (ms), description, localOffset (ms) }
@@ -20,6 +21,7 @@ const state = {
 /**
  * Timer Logic
  * High precision timer using performance.now()
+ * NOW WITH SPEED SUPPORT
  */
 const Timer = {
     start: () => {
@@ -32,20 +34,23 @@ const Timer = {
     pause: () => {
         if (!state.timer.isRunning) return;
         const now = performance.now();
-        state.timer.accumulated += (now - state.timer.startTime);
+        // Calculate accrued time at current speed
+        const elapsedReal = now - state.timer.startTime;
+        const elapsedScaled = elapsedReal * state.timer.speed;
+
+        state.timer.accumulated += elapsedScaled;
         state.timer.isRunning = false;
         state.timer.startTime = null;
         if (state.timer.rafId) cancelAnimationFrame(state.timer.rafId);
-        updateTimerDisplay(); // Ensure final frozen frame is accurate
+        updateTimerDisplay();
         updateControls();
-        saveState(); // Save state on pause
+        saveState();
     },
     toggle: () => {
         if (state.timer.isRunning) Timer.pause();
         else Timer.start();
     },
     reset: () => {
-        // Safe check
         if (state.timer.accumulated > 0 || state.timer.isRunning || state.timestamps.length > 0) {
             const confirmed = confirm("Are you sure you want to reset the timer and clear all timestamps?");
             if (!confirmed) return;
@@ -56,22 +61,55 @@ const Timer = {
         state.timer.startTime = null;
         if (state.timer.rafId) cancelAnimationFrame(state.timer.rafId);
 
-        // Also clear timestamps
+        // Keep speed or reset? Usually reset speed too? Or keep?
+        // Let's keep speed as a preference, but maybe reset to 1?
+        // User asked to support speed "like YouTube". Usually resetting video resets everything? 
+        // No, YouTube remembers speed per video or session. Let's keep the speed.
+
         state.timestamps = [];
         state.nextId = 1;
 
-        // Clear saved state
+        // Clear saved state but preserve speed? 
+        // simpler to just wipe and let loadState handle or just re-save partial?
+        // `reset` implies fresh start. Let's wipe everything but maybe restore configured speed if UI says so?
+        // Actually saveState() overwrites everything.
+
         localStorage.removeItem('yt_ts_maker_data');
+
+        // Re-read speed from UI to be sure (state.timer.speed is current)
 
         updateTimerDisplay();
         updateControls();
         renderTimestamps();
     },
+    setSpeed: (newSpeed) => {
+        const speed = parseFloat(newSpeed);
+        if (isNaN(speed) || speed <= 0) return;
+
+        if (state.timer.isRunning) {
+            // Checkpoint current time at OLD speed
+            const now = performance.now();
+            const elapsedReal = now - state.timer.startTime;
+            const elapsedScaled = elapsedReal * state.timer.speed;
+
+            state.timer.accumulated += elapsedScaled;
+            state.timer.startTime = now; // Restart clock base
+        }
+
+        state.timer.speed = speed;
+        // Optionally flash a message or update UI? The select box updates itself.
+        saveState();
+        if (!state.timer.isRunning) {
+            updateTimerDisplay(); // Just in case, though paused time doesn't change immediately
+        }
+    },
     getCurrentTime: () => {
         if (!state.timer.isRunning) {
             return state.timer.accumulated;
         }
-        return state.timer.accumulated + (performance.now() - state.timer.startTime);
+        const now = performance.now();
+        const elapsedReal = now - state.timer.startTime;
+        return state.timer.accumulated + (elapsedReal * state.timer.speed);
     }
 };
 
@@ -313,7 +351,8 @@ function saveState() {
     const data = {
         timestamps: state.timestamps,
         globalOffset: state.globalOffset,
-        timerAccumulated: state.timer.accumulated // Save current accumulated time
+        timerAccumulated: state.timer.accumulated, // Save current accumulated time
+        speed: state.timer.speed // Save speed
     };
     if (state.timer.isRunning) {
         // If running, calculate current accumulated up to now
@@ -330,7 +369,6 @@ function loadState() {
         const data = JSON.parse(raw);
         if (data.timestamps) {
             state.timestamps = data.timestamps;
-            // Restore nextId
             const maxId = state.timestamps.reduce((max, t) => Math.max(max, t.id), 0);
             state.nextId = maxId + 1;
         }
@@ -341,7 +379,12 @@ function loadState() {
         }
         if (data.timerAccumulated !== undefined) {
             state.timer.accumulated = data.timerAccumulated;
-            updateTimerDisplay(); // reflect loaded time
+            updateTimerDisplay();
+        }
+        if (data.speed !== undefined) {
+            state.timer.speed = data.speed;
+            const speedInput = document.getElementById('playback-speed');
+            if (speedInput) speedInput.value = state.timer.speed;
         }
         renderTimestamps();
     } catch (e) {
@@ -356,7 +399,7 @@ window.adjustLocalOffset = (id, deltaSec) => {
     const ts = state.timestamps.find(t => t.id === id);
     if (ts) {
         ts.localOffset += (deltaSec * 1000);
-        renderTimestamps(true, false); // Keep position
+        renderTimestamps(true, false);
         saveState();
     }
 };
@@ -365,7 +408,7 @@ window.setLocalOffset = (id, valSec) => {
     const ts = state.timestamps.find(t => t.id === id);
     if (ts) {
         ts.localOffset = parseFloat(valSec) * 1000;
-        renderTimestamps(true, false); // Keep position
+        renderTimestamps(true, false);
         saveState();
     }
 };
@@ -380,14 +423,13 @@ function initTimerEditing() {
     display.addEventListener('click', () => {
         if (state.timer.isRunning) Timer.pause(); // Pause to edit
 
-        const currentText = display.innerText.split('.')[0]; // remove decimal for simpler edit? or keep it?
-        // Let's keep it simple: HH:MM:SS or MM:SS. We can ignore decimal for input.
+        const currentText = display.innerText.split('.')[0];
 
         // Replace with input
         const input = document.createElement('input');
         input.type = 'text';
         input.value = currentText;
-        input.className = 'timer-edit-input'; // We'll need some CSS for this
+        input.className = 'timer-edit-input';
         input.style.fontSize = 'inherit';
         input.style.fontFamily = 'inherit';
         input.style.color = 'inherit';
@@ -419,10 +461,6 @@ function initTimerEditing() {
 
             if (!isNaN(newMs)) {
                 state.timer.accumulated = newMs;
-                if (state.timer.startTime) {
-                    // If it was running (startTime set), we need to reset start time to now - newMs logic? 
-                    // But we paused it at start of edit. startTime is null.
-                }
             }
 
             updateTimerDisplay();
@@ -451,13 +489,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-timer-start').addEventListener('click', Timer.toggle);
     document.getElementById('btn-timer-reset').addEventListener('click', Timer.reset);
 
-    // Save timer state periodically when running (e.g. on pause or just rely on unload?)
-    // Reliable way: save on pause/stop. Users usually pause before leaving.
-    // Also save on unload (already covered if we ensure timer state is saved).
-    // The existing beforeunload check prevents accidental loss, but if they confirm exit, we should save?
-    // Actually successful exit saves nothing currently in beforeunload.
-    // Let's add saveState to Timer.pause() for consistency.
-
     // Global Offset
     const globalInput = document.getElementById('global-offset');
     const updateGlobal = () => {
@@ -480,6 +511,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     globalInput.addEventListener('change', updateGlobal);
     globalInput.addEventListener('input', updateGlobal);
+
+    // Playback Speed
+    const speedInput = document.getElementById('playback-speed');
+    if (speedInput) {
+        speedInput.addEventListener('change', (e) => {
+            Timer.setSpeed(e.target.value);
+            // Remove focus after selection so spacebar toggles timer instead of reopening dropdown
+            e.target.blur();
+        });
+    }
 
     // Add Timestamp
     document.getElementById('btn-add-timestamp').addEventListener('click', addTimestamp);
