@@ -126,8 +126,42 @@ input[type="text"] {
 }
 
 #global-offset {
-    width: 120px;
-    /* Increased from default 60px to show more digits */
+    width: 60px;
+    /* Reverted to smaller width as seen in previous stable versions if needed, or keep 120px? User didn't complain. Let's keep 120px but maybe it was too wide? Actually, let's keep it consistent. */
+    width: 80px;
+}
+
+.speed-control-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: 20px;
+    /* Separate from offset */
+}
+
+.speed-control-group label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+#playback-speed {
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    padding: 5px 10px;
+    cursor: pointer;
+    appearance: none;
+    /* Remove default arrow if we want custom, but default is fine for now on glass */
+    text-align: center;
+    outline: none;
+}
+
+#playback-speed option {
+    background: var(--bg-dark);
+    color: var(--text-main);
 }
 
 /* Remove spinners (legacy support just in case) */
@@ -169,13 +203,13 @@ input::-webkit-inner-spin-button {
 }
 
 /* Flex container for Timer + Controls side-by-side */
+/* Flex container for Timer + Controls side-by-side */
 .timer-area {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto auto auto;
     align-items: center;
-    /* Vertically align center */
     justify-content: center;
-    gap: 40px;
-    /* Space between timer and buttons */
+    gap: 20px;
     margin-bottom: 20px;
 }
 
@@ -190,6 +224,8 @@ input::-webkit-inner-spin-button {
     line-height: 1;
     cursor: pointer;
     /* Indicates editable */
+    order: 2;
+    /* Desktop: Timer in middle */
 }
 
 .timer-display:hover {
@@ -203,12 +239,19 @@ input::-webkit-inner-spin-button {
     /* Slightly dimmed for visual hierarchy */
 }
 
-.timer-controls {
-    display: flex;
-    flex-direction: column;
-    /* Start/Pause on top, Reset below? Or Row? User said "Start/Pause&Reset buttons.. right". Let's stack them or row them? Row looks better usually. */
-    flex-direction: row;
-    gap: 15px;
+/* 
+   No specific wrapper for controls anymore. 
+   Buttons are direct children of .timer-area 
+*/
+
+#btn-timer-reset {
+    order: 1;
+    /* Desktop: Reset on Left */
+}
+
+#btn-timer-start {
+    order: 3;
+    /* Desktop: Start on Right */
 }
 
 .action-btn-img {
@@ -417,19 +460,37 @@ input.ts-desc:focus {
     }
 
     .timer-area {
-        flex-direction: column;
-        gap: 20px;
+        /* Mobile: Grid layout with Timer on top, Buttons below */
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+            "timer timer"
+            "reset start";
+        gap: 15px;
+        width: 100%;
+        justify-content: center;
+        justify-items: center;
     }
 
     .timer-display {
         font-size: 3.5rem;
+        grid-area: timer;
+        order: unset;
+        /* Reset order for grid areas */
     }
 
-    .timer-controls {
-        flex-direction: row;
-        width: 100%;
-        justify-content: center;
-        gap: 30px;
+    #btn-timer-reset {
+        grid-area: reset;
+        order: unset;
+        justify-self: center;
+        /* Center in column */
+    }
+
+    #btn-timer-start {
+        grid-area: start;
+        order: unset;
+        justify-self: center;
+        /* Center in column */
     }
 
     /* Hero Button */

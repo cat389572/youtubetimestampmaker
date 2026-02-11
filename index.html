@@ -28,6 +28,23 @@
                         <button id="btn-global-plus" class="icon-btn">+</button>
                     </div>
                 </div>
+
+                <div class="speed-control-group">
+                    <label>Speed</label>
+                    <div class="stepper">
+                        <select id="playback-speed">
+                            <option value="0.25">0.25x</option>
+                            <option value="0.5">0.5x</option>
+                            <option value="0.75">0.75x</option>
+                            <option value="1" selected>1.0x</option>
+                            <option value="1.25">1.25x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="1.75">1.75x</option>
+                            <option value="2">2.0x</option>
+                            <option value="4">4.0x</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -40,17 +57,16 @@
 
                     <!-- Timer Display Area: Timer + Small Controls to the Right -->
                     <div class="timer-area">
+                        <button id="btn-timer-reset" class="action-btn-img" title="Reset">
+                            <!-- Explicitly using reset.jpg with Capital R -->
+                            <img src="image/icon-reset.jpg" alt="Reset">
+                        </button>
+
                         <div class="timer-display" id="timer-display">00:00:00.0</div>
 
-                        <div class="timer-controls">
-                            <button id="btn-timer-start" class="action-btn-img" title="Start/Pause">
-                                <img src="image/icon-play.jpg" alt="Play" id="img-timer-control">
-                            </button>
-                            <button id="btn-timer-reset" class="action-btn-img" title="Reset">
-                                <!-- Explicitly using reset.jpg with Capital R -->
-                                <img src="image/icon-reset.jpg" alt="Reset">
-                            </button>
-                        </div>
+                        <button id="btn-timer-start" class="action-btn-img" title="Start/Pause">
+                            <img src="image/icon-play.jpg" alt="Play" id="img-timer-control">
+                        </button>
                     </div>
 
                     <!-- Hero Button -->
