@@ -10,11 +10,12 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=1.0.1">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <!-- Cloudflare Web Analytics -->
-    <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ffacb9c155124a269468bde2da989048"}'>
-    </script>
+    <script defer src='https://static.cloudflareinsights.com/beacon.min.js'
+        data-cf-beacon='{"token": "ffacb9c155124a269468bde2da989048"}'>
+        </script>
     <!-- End Cloudflare Web Analytics -->
 </head>
 
@@ -36,17 +37,9 @@
                 <div class="speed-control-group">
                     <label>Speed</label>
                     <div class="stepper">
-                        <select id="playback-speed">
-                            <option value="0.25">0.25x</option>
-                            <option value="0.5">0.5x</option>
-                            <option value="0.75">0.75x</option>
-                            <option value="1" selected>1.0x</option>
-                            <option value="1.25">1.25x</option>
-                            <option value="1.5">1.5x</option>
-                            <option value="1.75">1.75x</option>
-                            <option value="2">2.0x</option>
-                            <option value="4">4.0x</option>
-                        </select>
+                        <button id="btn-speed-minus" class="icon-btn">−</button>
+                        <input type="text" id="playback-speed" value="1.00" inputmode="decimal">
+                        <button id="btn-speed-plus" class="icon-btn">+</button>
                     </div>
                 </div>
             </div>
@@ -100,7 +93,7 @@
         </main>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=1.0.1"></script>
     <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
     <script
         type='text/javascript'>kofiwidget2.init('Support me on Ko-fi', '#72a4f2', 'V7V11TJ8J3'); kofiwidget2.draw();</script>
