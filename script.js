@@ -384,7 +384,7 @@ function loadState() {
         if (data.speed !== undefined) {
             state.timer.speed = data.speed;
             const speedInput = document.getElementById('playback-speed');
-            if (speedInput) speedInput.value = state.timer.speed;
+            if (speedInput) speedInput.value = state.timer.speed.toFixed(2);
         }
         renderTimestamps();
     } catch (e) {
@@ -514,11 +514,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Playback Speed
     const speedInput = document.getElementById('playback-speed');
+    const updateSpeed = () => {
+        let val = parseFloat(speedInput.value);
+        if (isNaN(val) || val < 0.05) val = 0.05;
+        // Round to 2 decimals if it's a long float from button clicks, 
+        // but keep exact if user entered it (user said "その場合は0.05刻みでなくとも良い")
+        // Actually, to keep it clean, let's just use it as is but fixed to 2 decimals for display if needed.
+        Timer.setSpeed(val);
+    };
+
     if (speedInput) {
-        speedInput.addEventListener('change', (e) => {
-            Timer.setSpeed(e.target.value);
-            // Remove focus after selection so spacebar toggles timer instead of reopening dropdown
-            e.target.blur();
+        speedInput.addEventListener('change', () => {
+            updateSpeed();
+            speedInput.value = state.timer.speed.toFixed(2);
+        });
+        speedInput.addEventListener('input', () => {
+            // Live update while typing? User said "その場合は0.05刻みでなくとも良い".
+            // Let's update state but maybe not reformat input until blur/change to avoid jumping.
+            let val = parseFloat(speedInput.value);
+            if (!isNaN(val) && val >= 0.05) {
+                Timer.setSpeed(val);
+            }
+        });
+
+        document.getElementById('btn-speed-plus').addEventListener('click', () => {
+            let current = parseFloat(speedInput.value) || 1.0;
+            current = Math.round((current + 0.05) * 100) / 100;
+            speedInput.value = current.toFixed(2);
+            Timer.setSpeed(current);
+        });
+
+        document.getElementById('btn-speed-minus').addEventListener('click', () => {
+            let current = parseFloat(speedInput.value) || 1.0;
+            current = Math.round((current - 0.05) * 100) / 100;
+            if (current < 0.05) current = 0.05;
+            speedInput.value = current.toFixed(2);
+            Timer.setSpeed(current);
         });
     }
 
